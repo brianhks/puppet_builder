@@ -1,0 +1,23 @@
+<?xml version="1.0" ?>
+
+<definitions xmlns="http://www.cpmake.org" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+	<definition name="puppet-lint" command="puppet-lint">
+		<option name="fail-on-warnings">--fail-on-warnings</option>
+		<option name="manifest" pattern="(.+)">$1</option>
+	</definition>
+
+	<!-- ======================================================================= -->
+	<definition name="linux-notify" command="notify-send">
+		<option name="title" pattern="(.+)">"$1"</option>
+		<option name="message" pattern="(.+)">"$1"</option>
+	</definition>
+	
+	<definition name="mac-notify" command="osascript">
+		<option>-e "display notification</option>
+		<option name="message" pattern="(.+)">\\"$1\\"</option>
+		<option name="title" pattern="(.+)">with title \\"$1\\"</option>
+		<option>"</option>
+	</definition>
+
+</definitions>

@@ -1,0 +1,30 @@
+<ivysettings>
+	<settings defaultResolver="default"/>
+	<resolvers>
+		<url name="puppet-forge">
+			<artifact pattern="https://forgeapi.puppetlabs.com/v3/files/[organisation]-[module]-[revision].tar.gz" />
+			https://forgeapi.puppetlabs.com/v3/files/puppetlabs-apt-2.0.1.zip
+		</url>
+		<!--<ibiblio name="local-ivy" m2compatible="false" root="file://${user.home}/.ivy2/repository" changingPattern=".*SNAPSHOT"/>-->
+		<!--<ibiblio name="my-maven" m2compatible="true" root="http://repo.maven.apache.org/maven2/"/>-->
+		<!--<ibiblio name="staging" m2compatible="true" root="https://oss.sonatype.org/content/repositories/orgagileclick-1008"/>-->
+		<!--<ibiblio name="central" m2compatible="true"/>-->
+
+		<filesystem name="local-ivy">
+			<ivy pattern="${user.home}/.ivy2/repository/[organisation]/[module]/[revision]/ivy-[revision](-[classifier]).xml"/>
+			<artifact pattern="${user.home}/.ivy2/repository/[organisation]/[module]/[revision]/[artifact]-[revision](-[classifier]).[ext]"/>
+		</filesystem>
+
+		<filesystem name="local-ivy-snapshot">
+			<ivy pattern="${user.home}/.ivy2/repository/[organisation]/[module]/[revision]-SNAPSHOT/ivy-[revision](-[classifier]).xml"/>
+			<artifact pattern="${user.home}/.ivy2/repository/[organisation]/[module]/[revision]-SNAPSHOT/[artifact]-[revision]-SNAPSHOT.[ext]"/>
+		</filesystem>
+
+		<chain name="default">
+			<resolver ref="local-ivy"/>
+			<resolver ref="local-ivy-snapshot"/>
+			<resolver ref="puppet-forge"/>
+		</chain>
+	</resolvers>
+</ivysettings>
+
