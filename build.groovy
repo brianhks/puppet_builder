@@ -16,16 +16,15 @@ saw = Tablesaw.getCurrentTablesaw()
 saw.includeDefinitionFile("definitions.xml")
 
 
-modules = ['profile_cassandra']
-modulesDir = 'src/main/puppet'
-buildDir = "build"
-//libDir = "${modulesDir}/profile_cassandra/lib"       //Location for extracted dependency modules
-libDir = "lib"
+modules = saw.getProperty("modules").tokenize(',')
+modulesDir = saw.getProperty("modules_directory")
+buildDir = saw.getProperty("build_directory")
+libDir = saw.getProperty("lib_directory")
 
 //The following are used when packaging the modules together
-projectName = "cassandra20"
-projectPackage = "agileclick"
-projectVersion = "1.0.0"
+projectName = saw.getProperty("project_name")
+projectPackage = saw.getProperty("project_package")
+projectVersion = saw.getProperty("project_version")
 
 
 ivySettings = [new File("ivysettings.xml")]
@@ -127,7 +126,6 @@ def doModuleRetrieve(Rule rule)
 
 	zipFiles.each()
 			{
-				println it
 				File archive = new File(it);
 				File destination = new File(libDir);
 
