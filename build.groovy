@@ -13,7 +13,7 @@ import tablesaw.addons.ivy.PomRule
 import tablesaw.addons.ivy.PublishRule
 
 saw = Tablesaw.getCurrentTablesaw()
-saw.includeDefinitionFile("definitions.xml")
+saw.includeDefinitionFile("puppet_builder/definitions.xml")
 
 
 modules = saw.getProperty("modules").tokenize(',')
@@ -27,7 +27,7 @@ projectPackage = saw.getProperty("project_package")
 projectVersion = saw.getProperty("project_version")
 
 
-ivySettings = [new File("ivysettings.xml")]
+ivySettings = [new File("puppet_builder/ivysettings.xml")]
 buildDirRule = new DirectoryRule(buildDir)
 libDirRule = new DirectoryRule(libDir)
 
@@ -68,7 +68,8 @@ modules.each()
 
 		//Setup ivy for each module
 		def resolveRule = new ResolveRule(ivyFile, ivySettings, Collections.singleton("*"))
-		resolveRule.setName("ivy-resolve-${it}")
+		//resolveRule.setName("ivy-resolve-${it}")
+		resolveRule.setName(null)
 
 		def retrieveRule = new RetrieveRule(ivyFile)
 				.addDepend(libDirRule)
