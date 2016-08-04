@@ -1,10 +1,11 @@
 <ivysettings>
 	<settings defaultResolver="default"/>
 	<resolvers>
-		<url name="puppet-forge">
+		<!--<url name="nexus">
 			<artifact pattern="https://forgeapi.puppetlabs.com/v3/files/[organisation]-[module]-[revision].tar.gz" />
 			https://forgeapi.puppetlabs.com/v3/files/puppetlabs-apt-2.0.1.zip
-		</url>
+		</url>-->
+		<ibiblio name="nexus" m2compatible="true" root="https://nexus:8443/nexus/content/repositories/puppetModules/"/>
 
 		<filesystem name="local-ivy">
 			<ivy pattern="${user.home}/.ivy2/repository/[organisation]/[module]/[revision]/ivy-[revision](-[classifier]).xml"/>
@@ -19,7 +20,7 @@
 		<chain name="default">
 			<resolver ref="local-ivy"/>
 			<resolver ref="local-ivy-snapshot"/>
-			<resolver ref="puppet-forge"/>
+			<resolver ref="nexus"/>
 		</chain>
 	</resolvers>
 </ivysettings>

@@ -15,8 +15,11 @@ import tablesaw.addons.ivy.PublishRule
 saw = Tablesaw.getCurrentTablesaw()
 saw.includeDefinitionFile("definitions.xml")
 
-buildDir = ".puppet_builder"
-libDir = "modules"
+
+modules = saw.getProperty("modules").tokenize(',')
+modulesDir = saw.getProperty("modules_directory")
+buildDir = saw.getProperty("build_directory")
+libDir = saw.getProperty("lib_directory")
 
 //The following are used when packaging the modules together
 projectName = saw.getProperty("project_name")
@@ -24,9 +27,12 @@ projectPackage = saw.getProperty("project_package")
 projectVersion = saw.getProperty("project_version")
 
 
-ivySettings = [new File(saw.getTablesawPath()+"/ivysettings.xml")]
+ivySettings = [new File("puppet_builder/ivysettings.xml")]
 buildDirRule = new DirectoryRule(buildDir)
 libDirRule = new DirectoryRule(libDir)
+
+publishRules = []
+retrieveRules = []
 
 def splitName(String name)
 {
@@ -40,71 +46,78 @@ def splitName(String name)
 	[packageName, moduleName]
 }
 
-//Read metadata for module
-def jsonSlurper = new JsonSlurper()
-def metadataFile = "metadata.json"
-def metadata = jsonSlurper.parse(new File(metadataFile))
-def (packageName, moduleName) = splitName(metadata.name)
+modules.each()
+	{
+		//Read metadata for module
+		def jsonSlurper = new JsonSlurper()
+		def metadataFile = modulesDir+"/${it}/metadata.json"
+		def metadata = jsonSlurper.parse(new File(metadataFile))
+		def (packageName, moduleName) = splitName(metadata.name)
 
-def ivyFileName = buildDir+"/ivy.xml"
-def ivyFile = new File(ivyFileName)
+		def ivyFileName = buildDir+"/ivy-${it}.xml"
+		def ivyFile = new File(ivyFileName)
 
-def ivyRule = new SimpleRule()
-		.addDepend(buildDirRule)
-		.addTarget(ivyFile.getAbsolutePath())
-		.addSource(metadataFile)
-		.setProperty("metadata", metadata)
-		.setProperty("packageName", packageName)
-		.setProperty("moduleName", moduleName)
-		.setMakeAction("doIvyRule")
+		def ivyRule = new SimpleRule()
+				.addDepend(buildDirRule)
+				.addTarget(ivyFile.getAbsolutePath())
+				.addSource(metadataFile)
+				.setProperty("metadata", metadata)
+				.setProperty("packageName", packageName)
+				.setProperty("moduleName", moduleName)
+				.setMakeAction("doIvyRule")
 
-//Setup ivy for each module
-def resolveRule = new ResolveRule(ivyFile, ivySettings, Collections.singleton("*"))
-//resolveRule.setName("ivy-resolve-${it}")
-resolveRule.setName(null)
+		//Setup ivy for each module
+		def resolveRule = new ResolveRule(ivyFile, ivySettings, Collections.singleton("*"))
+		//resolveRule.setName("ivy-resolve-${it}")
+		resolveRule.setName(null)
 
-def retrieveRule = new RetrieveRule(ivyFile)
-		.addDepend(libDirRule)
-		.setMakeAction("doModuleRetrieve")
-		.setName("retrieve")
-		.setRetrievePattern("${libDir}/[organization]-[artifact]-[revision].[ext]")
+		def retrieveRule = new RetrieveRule(ivyFile)
+				.addDepend(libDirRule)
+				.setMakeAction("doModuleRetrieve")
+				.setName("ivy-retrieve-${it}")
+				.setRetrievePattern("${libDir}/[artifact]-[revision](-[classifier]).[ext]")
 
-retrieveRule.setResolveRule(resolveRule)
+		retrieveRule.setResolveRule(resolveRule)
+
+		retrieveRules.add(retrieveRule)
 
 
-//Setup bundle rule for module
-tarRule = new TarRule("${buildDir}/${moduleName}-${metadata.version}.tar")
-		.addFileSet(new RegExFileSet(".", ".*").addExcludeDir(buildDir).recurse())
-		.addDepend(buildDirRule)
+		//Setup bundle rule for module
+		tarRule = new TarRule("${buildDir}/${it}-${metadata.version}.tar")
+				.addFileSet(new RegExFileSet(modulesDir, ".*").setStartDir(it).recurse())
+				.addDepend(buildDirRule)
 
-gzipRule = new GZipRule("bundle").setSource(tarRule.getTarget())
-		.setDescription("Create bundled module.")
-		.setTarget("${buildDir}/${moduleName}-${metadata.version}.tar.gz")
-		.addDepend(tarRule)
+		gzipRule = new GZipRule("bundle-${it}").setSource(tarRule.getTarget())
+				.setDescription("Create bundled module.")
+				.setTarget("${buildDir}/${it}-${metadata.version}.tar.gz")
+				.addDepend(tarRule)
 
-//setup publish for module
-if (metadata.version.contains("SNAPSHOT"))
-	defaultResolver = "local-ivy-snapshot"
-else
-	defaultResolver = "local-ivy"
+		//setup publish for module
+		if (metadata.version.contains("SNAPSHOT"))
+			defaultResolver = "local-ivy-snapshot"
+		else
+			defaultResolver = "local-ivy"
 
-def publishRule = new PublishRule(ivyFile, defaultResolver, resolveRule)
-		.setName("publish")
-		.setDescription("Publish pom and jar to maven snapshot repo")
-		.setArtifactId(moduleName)
-		.setGroupId(packageName)
-		.setVersion(metadata.version)
-		.addDepend(buildDirRule)
-		.publishMavenMetadata("maven-metadata.xml")
-		.setOverwrite(true)
+		def publishRule = new PublishRule(ivyFile, defaultResolver, resolveRule)
+				.setName("publish-${it}")
+				.setDescription("Publish pom and jar to maven snapshot repo")
+				.setArtifactId(moduleName)
+				.setGroupId(packageName)
+				.setVersion(metadata.version)
+				.addDepend(buildDirRule)
+				.publishMavenMetadata("maven-metadata-${it}.xml")
+				.setOverwrite(true)
 
-publishRule.addArtifact(ivyRule.getTarget())
-		.setType("ivy")
-		.setExt("xml")
-publishRule.addArtifact(gzipRule.getTarget())
-		.setType("module")
-		.setExt("tar.gz")
+		publishRule.addArtifact(ivyRule.getTarget())
+				.setType("ivy")
+				.setExt("xml")
+		publishRule.addArtifact(gzipRule.getTarget())
+				.setType("module")
+				.setExt("tar.gz")
 
+		publishRules.add(publishRule)
+
+	}
 
 def doModuleRetrieve(Rule rule)
 {
@@ -114,21 +127,14 @@ def doModuleRetrieve(Rule rule)
 
 	zipFiles.each()
 			{
-				File archive = new File(it)
-				File destination = new File(libDir)
+				File archive = new File(it);
+				File destination = new File(libDir);
 
-				Archiver archiver = ArchiverFactory.createArchiver("tar", "gz")
-				archiver.extract(archive, destination)
-				
+				Archiver archiver = ArchiverFactory.createArchiver("tar", "gz");
+				archiver.extract(archive, destination);
+
 				saw.delete(it)
 			}
-			
-	//Rename the folders
-	folders = new File(libDir).listFiles()
-	folders.each()
-	{
-		it.renameTo(new File("modules", it.getName().split("-")[1]));
-	}
 }
 
 public class RangeVersion
@@ -197,6 +203,8 @@ def translateVersion(String version)
 	""
 }
 
+filterLocalModules = true
+
 void doIvyRule(Rule rule)
 {
 	def metadata = rule.getProperty("metadata")
@@ -208,6 +216,8 @@ void doIvyRule(Rule rule)
 	metadata.dependencies.each()
 			{
 				def (depPackageName, depModuleName) = splitName(it.name)
+				if (filterLocalModules && modules.contains(depModuleName))
+					return
 
 				def version = translateVersion(it.version_requirement)
 
@@ -231,19 +241,26 @@ void doIvyRule(Rule rule)
 	ivyFile.write ivyXml
 }
 
+//==============================================================================
+new SimpleRule("publish-all").setDescription("Publish all modules to repo")
+		.addDepends(publishRules)
+
+new SimpleRule("retrieve-all").setDescription("Retreive dependencies for all modules")
+		.addDepends(retrieveRules)
+
 
 //==============================================================================
 //Rule to package all modules and dependencies.
-/*packageRule = new ZipRule("package", "${buildDir}/${projectName}.zip")
+packageRule = new ZipRule("package", "${buildDir}/${projectName}.zip")
 		.setDescription("Package all modules and dependencies into one artifact")
 		.addDepend("retrieve-all")
 		.addFileSet(new RegExFileSet(modulesDir, ".*").recurse())
-		.addFileSet(new RegExFileSet(libDir, ".*").recurse())*/
+		.addFileSet(new RegExFileSet(libDir, ".*").recurse())
 
 
 //==============================================================================
 //Rule for running lint on all pp files
-ppFiles = new RegExFileSet("manifests", ".*\\.pp").recurse()
+ppFiles = new RegExFileSet(modulesDir, ".*\\.pp").recurse()
 		.getFullFilePaths()
 
 lintRule = new SimpleRule("puppet-lint").setDescription("Run puppet-lint on all puppet files")
@@ -262,5 +279,11 @@ void runLint(Rule rule)
 	}
 }
 
+void prepForTarget(String target)
+{
+	println target
+	if (target.startsWith("publish"))
+		filterLocalModules = false
+}
 
 
